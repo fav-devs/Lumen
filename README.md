@@ -46,13 +46,6 @@ git -C ../exact checkout 94b8671f70fe2e25b307a40e7fce66dc27c9f802
 cd ../exact && bun scripts/exact.mjs setup
 ```
 
-That checkout of Exact also needs an empty `snapback4/ts` folder, or its web build fails before
-it starts:
-
-```bash
-mkdir -p ../exact/snapback4/ts
-```
-
 `EXACT2=/path/to/exact` points at a checkout somewhere else. `bun ../exact/scripts/exact.mjs
 setup --check` names anything a platform is missing.
 
