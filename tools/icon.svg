@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- Seat View's icon: the screen's arc over the seats, yours lit. Rendered to assets/icon-1024.png by tools/render-icon.cjs. -->
+  <defs>
+    <radialGradient id="bg" cx="0.5" cy="0.18" r="0.95">
+      <stop offset="0" stop-color="#2a2522"/>
+      <stop offset="0.55" stop-color="#121112"/>
+      <stop offset="1" stop-color="#0a0a0b"/>
+    </radialGradient>
+    <linearGradient id="arc" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0"/>
+      <stop offset="0.5" stop-color="#ffffff" stop-opacity="1"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="beam" cx="0.5" cy="0" r="0.7">
+      <stop offset="0" stop-color="#fff3e2" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#fff3e2" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="22"/>
+    </filter>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <path d="M 150 330 Q 512 190 874 330 L 874 640 L 150 640 Z" fill="url(#beam)"/>
+  <path d="M 150 330 Q 512 190 874 330" fill="none" stroke="url(#arc)" stroke-width="22" stroke-linecap="round"/>
+  <!-- Four rows of five seats; row 3, seat 3 is yours. -->
+  <g fill="#3a3a3f">
+    <rect x="207" y="430" width="98" height="82" rx="20"/><rect x="331" y="430" width="98" height="82" rx="20"/><rect x="455" y="430" width="98" height="82" rx="20"/><rect x="579" y="430" width="98" height="82" rx="20"/><rect x="703" y="430" width="98" height="82" rx="20"/>
+    <rect x="207" y="540" width="98" height="82" rx="20"/><rect x="331" y="540" width="98" height="82" rx="20"/><rect x="455" y="540" width="98" height="82" rx="20"/><rect x="579" y="540" width="98" height="82" rx="20"/><rect x="703" y="540" width="98" height="82" rx="20"/>
+    <rect x="207" y="650" width="98" height="82" rx="20"/><rect x="331" y="650" width="98" height="82" rx="20"/><rect x="579" y="650" width="98" height="82" rx="20"/><rect x="703" y="650" width="98" height="82" rx="20"/>
+  </g>
+  <g fill="#6a1f27">
+    <rect x="207" y="760" width="98" height="82" rx="20"/><rect x="331" y="760" width="98" height="82" rx="20"/><rect x="455" y="760" width="98" height="82" rx="20"/><rect x="579" y="760" width="98" height="82" rx="20"/><rect x="703" y="760" width="98" height="82" rx="20"/>
+  </g>
+  <rect x="445" y="640" width="118" height="102" rx="28" fill="#6fe3a6" opacity="0.55" filter="url(#glow)"/>
+  <rect x="455" y="650" width="98" height="82" rx="20" fill="#6fe3a6"/>
+</svg>

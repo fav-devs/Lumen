@@ -1,5 +1,5 @@
 {
-  "$schema": "../../../exact/scripts/app.schema.json",
+  "$schema": "../exact/scripts/app.schema.json",
   "name": "Seat View",
   "short_name": "Seat View",
   "id": "ca.creatin.sondr.seat-view",
@@ -10,11 +10,48 @@
     "name": "Seat View"
   },
   "host": {
-    "web": {}
+    "web": {},
+    "linux": {},
+    "ios": {
+      "minimumOS": "17.0",
+      "deviceFamily": [
+        "iphone",
+        "ipad"
+      ]
+    },
+    "macos": {
+      "minimumOS": "14.0",
+      "window": {
+        "width": 1280,
+        "height": 820
+      }
+    },
+    "android": {},
+    "windows": {
+      "window": {
+        "width": 1280,
+        "height": 820,
+        "minWidth": 360,
+        "minHeight": 500
+      }
+    }
   },
   "deploy": {
     "store": {
-      "web": "0"
+      "web": "0",
+      "linux": "0",
+      "ios": "0",
+      "macos": "0",
+      "windows": "0"
     }
-  }
+  },
+  "background_color": "#0a0a0b",
+  "theme_color": "#0a0a0b",
+  "icons": [
+    {
+      "src": "assets/icon-1024.png",
+      "sizes": "1024x1024",
+      "type": "image/png"
+    }
+  ]
 }

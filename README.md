@@ -1,73 +1,59 @@
 # Seat View
 
-A cinema seat picker built with [Exact](https://github.com/expo/exact): pick a seat on the map,
-press Continue, and the camera flies into the hall and turns to the screen, so you see the view
-from that seat before you book. It follows a concept by Ramin Nasibov; the cinema, the film on
-the screen and the code are this repo's own.
+A cinema seat picker built with [Exact](https://github.com/expo/exact). Pick a seat on the map,
+press Continue, and the map rises into a 3D hall while the camera flies into your seat and turns
+to the screen. You see the view from that seat before you book: how far you are from the screen,
+how much of your view it fills, and how far off-centre you sit.
 
-It runs on the web at any size: a phone gets the map with a bar under it; a window 860 px or
-wider keeps a sidebar on the left (showtimes, legend, your pick, then the seat's numbers) and gives
-the hall the rest. Built and tested on Exact's web host only.
+It follows a concept by Ramin Nasibov; the cinema, the film on the screen, the icon and the code
+are this project's own. The booking is a demo: nothing is charged.
 
-## How the 3D works
+## Platforms
 
-Exact boxes take 2D transforms only, and Exact has no canvas you can draw HTML into, so the hall
-is projected by hand:
+One `app.contract` and one `app.ts` run on every platform Exact has. `app.json` names them all.
 
-- `app.ts` builds the hall in metres as flat faces: walls, stepped floor, the screen, four faces
-  per seat. Each face has an outward normal. The film on the screen is faces too, laid out in
-  the screen's own coordinates, so it stays in perspective from any seat.
-- `app.contract` keeps a camera (position, yaw, pitch, a 60° lens) and projects every face
-  through it each frame. A face is drawn only when it turns toward the camera and lies wholly in
-  front of it. Seats are drawn far to near.
-- Everything is SVG `polygon`s, which Exact draws on every host.
-- **The map is the hall seen from above.** The camera looks straight down, its lens set so the
-  floor is a fixed number of pixels a metre, and every height is flattened to the floor, so each
-  seat draws as a tile. The seat buttons are invisible press targets laid exactly over their tiles.
-  Nothing crossfades: the map you tap is the first frame of the flight.
-- **Continue raises the hall.** Over the first 38% of the 2.4 s flight:
-  - every height grows back, so the seats extrude from their tiles;
-  - each face's colour turns from its tile's grey or recliner red to the upholstery (yours stays
-    green);
-  - the walls and the screen fade in.
-- **The camera makes two overlapping moves, so it never stops:**
-  1. Down from the map to a point behind and above the seat, looking at it. On the way down the
-     lens keeps the floor at the map's scale (a dolly zoom) until it reaches the seat's lens: 60°
-     on a phone, 70° across a wide stage.
-  2. Into the seat, turning up to the screen.
-- **From the seat, a drag turns the head.**
+| Platform | Build and run | Checked so far |
+|---|---|---|
+| Web | `bun exact.mjs web` | Built, 9 tests pass, recorded on a real clock at phone and 1440×900 sizes |
+| Linux | `bun exact.mjs linux`, then `bun exact.mjs test linux` | See the status note below |
+| iOS | On a Mac with Xcode: `bun exact.mjs ios --run` (Simulator), `--device --run` (an iPhone), `bun exact.mjs share` (a link to install it) | Not built: needs a Mac |
+| macOS | On a Mac with Xcode: `bun exact.mjs mac --run` | Not built: needs a Mac |
+| Android | `bun exact.mjs android` with the Android SDK, the `aarch64-linux-android` Rust target and Hermes's Android bundle (`bun scripts/hermes-android.mjs build` in the Exact checkout) | Not built: needs the Android SDK |
+| Windows | On Windows: `bun exact.mjs windows --run` | Not built: needs Windows |
 
-In headless Chromium (software rendering) the flight holds a 60 fps median with about 270 faces
-on screen, with some 30 fps frames at 1440×900.
+Exact calls Android early: it builds and runs on an emulator or a phone, but store packaging
+doesn't exist yet. The first native build on a machine takes 10–15 minutes; later ones take a
+minute or two.
 
-### Why not HTML-in-Canvas?
+## Setup
 
-Chrome's [HTML-in-Canvas](https://developer.chrome.com/blog/html-in-canvas) draws live DOM into a
-2D, WebGL or WebGPU canvas and keeps it interactive. It would let the real seat-map DOM become a
-texture in a WebGL hall. Exact can't use it:
+You need [Bun](https://bun.sh) 1.4.2 or newer and Rust (rustup). Exact has no releases and
+changes daily, so use the commit this app was built against. Clone it beside this repo, so it
+sits at `../exact`:
 
-- Exact's iOS, macOS and Linux builds have no DOM.
-- Exact's web runtime doesn't expose the canvas APIs the feature needs.
+```bash
+git clone https://github.com/expo/exact ../exact
+```
 
-The projection here gets the same seat-map-into-hall transition from one source on every host.
+```bash
+git -C ../exact checkout 94b8671f70fe2e25b307a40e7fce66dc27c9f802
+```
 
-## What's in it
+```bash
+cd ../exact && bun scripts/exact.mjs setup
+```
 
-- **Map:** three showtimes, each with its own taken seats; recliners in rows H–I at €16.
-- **View sheet:** the seat's verdict (UP CLOSE, SWEET SPOT or FULL PICTURE), distance to the screen,
-  the screen's field of view, how far off-centre you sit, and a mini map.
-- **Booking:** Book takes the seat for that showtime. It's a demo: nothing is charged, and bookings
-  last until the page reloads.
+That checkout of Exact also needs an empty `snapback4/ts` folder, or its web build fails before
+it starts:
 
-| File | What it is |
-|---|---|
-| `app.contract` | The map, the camera and its flight, the view sheet, and the hall drawn through the camera |
-| `shapes.contract` | Seats, rows, the per-seat numbers, faces, the hall, the camera |
-| `app.ts` | Taken seats, prices, each seat's numbers and camera target, the hall's faces, booking |
+```bash
+mkdir -p ../exact/snapback4/ts
+```
 
-## Run it
+`EXACT2=/path/to/exact` points at a checkout somewhere else. `bun ../exact/scripts/exact.mjs
+setup --check` names anything a platform is missing.
 
-Set up Exact beside this repo as `apps/exact-editor/README.md` describes, then from this folder:
+## Develop
 
 ```bash
 bun exact.mjs web
@@ -77,6 +63,61 @@ bun exact.mjs web
 bun exact.mjs test web
 ```
 
-There are 9 tests: the map, picking, the recliner price, the flight and the numbers from B4,
-looking around, flying back, booking, showtimes, and the wide layout. All pass. Build outside the repo
-(`CARGO_TARGET_DIR=/tmp/seat-view-target`) if the repo-root `tsconfig.json` stops the build.
+```bash
+bun exact.mjs web-build --out dist
+```
+
+The first opens the dev loop: it rebuilds on save and serves at the URL it prints. Add `--lan`
+to open it from a phone on the same network. The second runs `app.test.contract`. The third
+writes a static site to `dist/` for any host, and `bun exact.mjs serve dist` serves it.
+
+## How it works
+
+| File | What it is |
+|---|---|
+| `app.contract` | The map, the camera and its flight, the view from the seat, the layouts |
+| `shapes.contract` | Seats, rows, the per-seat numbers, faces, the hall, the camera |
+| `app.ts` | Taken seats, prices, each seat's numbers and camera target, the hall's faces, booking |
+| `assets/icon-1024.png` | The app icon every platform derives its own from; `tools/icon.svg` is its source |
+
+Exact draws boxes with 2D transforms only, so the hall is projected by hand:
+
+- **The hall is faces.** `app.ts` builds it in metres: walls, stepped floor, the screen, four
+  faces per seat, each with an outward normal. The film on the screen is faces too, laid out in
+  the screen's own coordinates, so it stays in perspective from any seat.
+- **The camera projects them.** `app.contract` keeps a camera (position, yaw, pitch, lens) and
+  projects every face through it each frame as SVG `polygon`s, which Exact draws on every
+  platform. It draws a face only when it turns toward the camera and lies wholly in front of
+  it, and draws the seats far to near.
+- **The map is the hall seen from above.** The camera looks straight down, its lens set so the
+  floor is a fixed number of pixels a metre, and every height is flattened to the floor, so each
+  seat draws as a tile. The seat buttons are invisible targets over their tiles, so the map you
+  tap is the first frame of the flight.
+- **Continue raises the hall.** Over the first 38% of the 2.4 s flight the seats extrude from their
+  tiles, each face's colour turns from the map's to the upholstery (yours stays green), and the
+  walls and screen fade in.
+- **The camera makes two moves that overlap, so it never stops.** It comes down from the map to
+  behind and above your seat, looking at it. On the way the lens keeps the floor at the map's
+  scale (a dolly zoom) until it reaches the seat's lens. Then it drops into the seat and turns up
+  to the screen.
+- **From the seat, a drag turns your head.**
+
+A window 860 px or wider keeps the showtimes, legend, your pick and the seat's numbers in a
+sidebar and gives the hall the rest; narrower, the map has a bar under it and the numbers come
+up in a sheet.
+
+### Why not HTML-in-Canvas?
+
+Chrome's [HTML-in-Canvas](https://developer.chrome.com/blog/html-in-canvas) draws live HTML into a
+2D, WebGL or WebGPU canvas and keeps it clickable: the natural tool for turning a seat map into a
+3D hall in a browser. Exact's iOS, macOS and Linux builds have no HTML, and its web runtime
+doesn't expose those canvas APIs, so this app projects the hall itself and gets the same
+map-into-hall shot on every platform.
+
+## Changing the icon
+
+Edit `tools/icon.svg`, then render it from this folder with Playwright's Chromium:
+
+```bash
+node tools/render-icon.cjs
+```
