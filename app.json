@@ -1,0 +1,20 @@
+{
+  "$schema": "../../../exact/scripts/app.schema.json",
+  "name": "Seat View",
+  "short_name": "Seat View",
+  "id": "ca.creatin.sondr.seat-view",
+  "start_url": "/",
+  "display": "standalone",
+  "app": {
+    "id": "ca.creatin.sondr.seat-view",
+    "name": "Seat View"
+  },
+  "host": {
+    "web": {}
+  },
+  "deploy": {
+    "store": {
+      "web": "0"
+    }
+  }
+}

@@ -1,0 +1,101 @@
+// The records app.ts answers with.
+
+// A seat on the map. `block` is 0, 1 or 2 (left, centre, right of the aisles).
+shape Seat
+  id: string
+  row: string
+  n: number
+  block: number
+  kind: string
+  price: number
+  taken: bool
+
+shape Row
+  letter: string
+  seats: Seat[]
+
+// What the view from a seat is like, and where the camera goes to show it: `near` is the
+// point above and behind the seat it passes on the way, `eye` the seat's eye line.
+shape SeatInfo
+  id: string
+  row: string
+  n: number
+  label: string
+  kind: string
+  price: number
+  distance: number
+  fov: number
+  offset: number
+  side: string
+  nearX: number
+  nearY: number
+  nearZ: number
+  nearYaw: number
+  nearPitch: number
+  eyeX: number
+  eyeY: number
+  eyeZ: number
+  yaw: number
+  pitch: number
+
+// A point in the hall, in metres: x to the right from the seats, y up, z from the screen back.
+shape P3
+  x: number
+  y: number
+  z: number
+
+// A flat face: its corners, its colour (`alt` when its seat is the one picked), and its outward
+// normal at the point (px, py, pz), so a face turned away from the camera is not drawn.
+shape Face
+  id: string
+  fill: string
+  alt: string
+  nx: number
+  ny: number
+  nz: number
+  px: number
+  py: number
+  pz: number
+  pts: P3[]
+
+// A seat in 3D: its centre, which orders the seats far to near, and its faces.
+shape Seat3
+  id: string
+  c: P3
+  faces: Face[]
+
+// The hall: walls and floor, the film on the screen, and the seats.
+shape World
+  backdrop: Face[]
+  film: Face[]
+  seats: Seat3[]
+
+// The camera: where it is, its right, up and forward axes, its focal length in pixels, and the
+// middle of the picture.
+shape Cam
+  x: number
+  y: number
+  z: number
+  rx: number
+  rz: number
+  ux: number
+  uy: number
+  uz: number
+  fx: number
+  fy: number
+  fz: number
+  f: number
+  hw: number
+  hh: number
+
+shape Reply
+  ok: bool
+  error: string
+
+shape Viewport
+  width: number
+  height: number
+
+shape Showtime
+  time: string
+  format: string

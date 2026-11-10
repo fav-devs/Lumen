@@ -1,0 +1,328 @@
+// Seat View: pick a seat on the map, then fly into the hall and see the screen from it before
+// you book. The hall is drawn in 3D by projecting app.ts's faces through a camera here, as SVG,
+// so the same file draws it on every host; no canvas, WebGL or HTML-in-Canvas is involved.
+use Seat, Row, SeatInfo, P3, Face, Seat3, World, Cam, Reply, Viewport, Showtime from "./shapes.contract"
+
+keyframes rise
+  from opacity=0 translate="0px 48px"
+  to opacity=1 translate="0px 0px"
+
+keyframes appear
+  from opacity=0
+  to opacity=1
+
+// The camera's view of a point: its depth along the view, and where it lands in the picture.
+fn depth(v: P3, c: Cam): number = (v.x - c.x) * c.fx + (v.y - c.y) * c.fy + (v.z - c.z) * c.fz
+fn camX(v: P3, c: Cam): number = (v.x - c.x) * c.rx + (v.z - c.z) * c.rz
+fn camY(v: P3, c: Cam): number = (v.x - c.x) * c.ux + (v.y - c.y) * c.uy + (v.z - c.z) * c.uz
+fn sx(v: P3, c: Cam): number = c.hw + c.f * camX(v, c) / depth(v, c)
+fn sy(v: P3, c: Cam): number = c.hh - c.f * camY(v, c) / depth(v, c)
+fn pt(v: P3, c: Cam): string = `${round(sx(v, c) * 10) / 10},${round(sy(v, c) * 10) / 10}`
+fn points(f: Face, c: Cam): string = f.pts.map(v => pt(v, c)).join(" ")
+// A face is drawn when it turns toward the camera and lies wholly in front of it.
+fn drawn(f: Face, c: Cam): bool = (c.x - f.px) * f.nx + (c.y - f.py) * f.ny + (c.z - f.pz) * f.nz > 0 and f.pts.filter(v => depth(v, c) < 0.12).length == 0
+
+// A camera at (x, y, z) turned `yaw` to the right and `pitch` up (radians); 0 and 0 face the screen.
+// `cy` is where the view's centre lands in the picture, from the top: below the middle shifts the
+// lens up, as a camera's rise does, without tilting it.
+fn camera(x: number, y: number, z: number, yaw: number, pitch: number, f: number, w: number, cy: number): Cam = Cam(x=x, y=y, z=z, rx=cos(yaw), rz=sin(yaw), ux=0 - sin(yaw) * sin(pitch), uy=cos(pitch), uz=cos(yaw) * sin(pitch), fx=sin(yaw) * cos(pitch), fy=sin(pitch), fz=0 - cos(yaw) * cos(pitch), f=f, hw=w / 2, hh=cy)
+
+fn smooth(k: number): number = k * k * (3 - 2 * k)
+// A quadratic Bézier through `a`, toward `b`, to `c`: the flight passes near, not through, the
+// point behind the seat, so it never stops on the way.
+fn bez(a: number, b: number, c: number, k: number): number = (1 - k) * (1 - k) * a + 2 * (1 - k) * k * b + k * k * c
+fn euro(n: number): string = `€${n.toFixed(2)}`
+fn showtimes(): Showtime[] = [Showtime(time="17:30", format="2D"), Showtime(time="19:45", format="IMAX"), Showtime(time="22:15", format="3D")]
+fn showLabel(i: number): string = i == 0 ? "17:30 · 2D" : i == 1 ? "19:45 · IMAX" : "22:15 · 3D"
+
+component SeatView
+  resource viewport = exactViewport() as shape Viewport
+  resource rows = hall(show) as shape Row[] else empty()
+  resource info = seatInfo(chosen == "" ? "F8" : chosen) as shape SeatInfo else empty()
+  resource world = world() as shape World else empty()
+  mutation booked as shape Reply refreshes rows then afterBook
+
+  state show = 1
+  state chosen = ""
+  state hint = false
+  // "map", "in" (flying to the seat), "view", "booked", "out" (flying back).
+  state phase = "map"
+  state t = 0
+  state startAt = 0
+  state clearAfter = false
+  state toast = ""
+  // Looking around from the seat: a drag turns the head.
+  state lookYaw = 0
+  state lookPitch = 0
+  state dragging = false
+  state dragX = 0
+  state dragY = 0
+  state fromYaw = 0
+  state fromPitch = 0
+
+  derive w = viewport.width
+  derive h = viewport.height
+  // A 60° lens across the narrower side.
+  derive focal = min(w, h * 0.75) / 1.155
+  derive e = smooth(t)
+  // From above the seats, where the hall lines up with the map, to the seat's eye line; at the seat
+  // the screen rises into the space above the sheet.
+  derive cam = camera(bez(0, info.nearX, info.eyeX, e), bez(14, info.nearY, info.eyeY, e), bez(14, info.nearZ, info.eyeZ, e), bez(0, info.nearYaw, info.yaw, e) + lookYaw, bez(0 - 1.5707, info.nearPitch, info.pitch, e) + lookPitch, focal, w, h * (0.5 - 0.16 * e))
+  derive mapOpacity = max(0, 1 - t * 4)
+  derive seatW = min(20, (w - 32 - 16 - 24 - 15 * 4) / 16)
+  derive rowIdx = "ABCDEFGHI".indexOf(info.row)
+  derive bookOk = match booked { case some(r) => r.ok, case none => false }
+  derive bookError = match booked { case some(r) => r.error, case none => "" }
+
+  task flight when phase == "in" or phase == "out"
+    every(frame, step)
+  task clearToast when toast != "" key=toast
+    after(2500, hideToast)
+
+  action pickShow(i: number)
+    show = i
+    chosen = ""
+  action pick(id: string)
+    chosen = (chosen == id ? "" : id)
+    haptic("selection")
+  action toggleHint
+    hint = not hint
+  action go
+    if chosen != ""
+      phase = "in"
+      startAt = performanceNow()
+      t = 0
+      lookYaw = 0
+      lookPitch = 0
+  action step
+    let k = min(1, (performanceNow() - startAt) / 1900)
+    if phase == "in"
+      t = k
+      if k >= 1
+        phase = "view"
+    else
+      t = 1 - k
+      if k >= 1
+        phase = "map"
+        if clearAfter
+          chosen = ""
+          clearAfter = false
+  action changeSeat
+    phase = "out"
+    startAt = performanceNow()
+    lookYaw = 0
+    lookPitch = 0
+  action bookIt
+    send booked = book(show, chosen)
+  action afterBook
+    if bookOk
+      phase = "booked"
+      haptic("success")
+    else
+      toast = bookError
+  action done
+    clearAfter = true
+    phase = "out"
+    startAt = performanceNow()
+    lookYaw = 0
+    lookPitch = 0
+  action hideToast
+    toast = ""
+
+  action lookDown(e: PointerEvent)
+    if phase == "view" or phase == "booked"
+      dragging = true
+      dragX = e.clientX
+      dragY = e.clientY
+      fromYaw = lookYaw
+      fromPitch = lookPitch
+  action lookMove(e: PointerEvent)
+    if dragging
+      lookYaw = max(0 - 0.7, min(0.7, fromYaw - (e.clientX - dragX) * 0.004))
+      lookPitch = max(0 - 0.35, min(0.35, fromPitch + (e.clientY - dragY) * 0.003))
+  action lookUp(e: PointerEvent)
+    dragging = false
+
+  view
+    view testId="app" position="relative" width="100%" height="100%" overflow="hidden" background-color="#0a0a0b" color="#f2f2f2"
+      // The hall in 3D, once the flight starts.
+      if phase != "map"
+        view testId="scene" position="absolute" inset=0 touch-action="none" pointerdown=lookDown pointermove=lookMove pointerup=lookUp
+          Hall(world=world, cam=cam, chosen=chosen, w=w, h=h)
+
+      // The seat map.
+      if mapOpacity > 0
+        column testId="map" position="absolute" inset=0 opacity=mapOpacity pointer-events=(phase == "map" ? "auto" : "none") background-color="#0a0a0b"
+          padding-top="env(safe-area-inset-top)" box-sizing="border-box"
+          row align-items="center" padding="10px 16px 6px" gap=12
+            view width=32
+            column flex=1 align-items="center" gap=2
+              text "Lumen" font-size=16 font-weight=600 testId="cinema"
+              text "Hall 3 · Fri 14 Nov" font-size=11 color="#8a8a8e"
+            button press=toggleHint aria-label="How it works" testId="info" width=32 height=32 border-radius=16 border="1px solid #2c2c30" background-color="transparent" color="#b4b4b8" padding=0 font-size=13 font-weight=600
+              text "i"
+          if hint
+            text "Pick a seat, then Continue to see the screen from it before you book." font-size=12 color="#a0a0a5" text-align="center" padding="0 32px" testId="hint"
+          row justify-content="center" padding="8px 0 4px"
+            row role="tablist" aria-label="Showtime" padding=3 gap=2 border-radius=18 background-color="#161618"
+              for s, i in showtimes() key=s.time
+                button role="tab" aria-selected=(show == i) press=pickShow(i) testId=`show-${i}` aria-label=`${s.time} ${s.format}`
+                  height=30 padding="0 12px" border-radius=15 border="none" display="flex" align-items="baseline" gap=4
+                  background-color=(show == i ? "#f2f2f2" : "transparent") color=(show == i ? "#111111" : "#8a8a8e")
+                  text s.time font-size=12 font-weight=600
+                  text s.format font-size=8 font-weight=600 opacity=0.7
+          // The screen.
+          column align-items="center" padding="10px 20px 0" gap=6
+            svg width=(w - 40) height=46 viewBox=`0 0 ${w - 40} 46` aria-hidden=true
+              defs
+                linearGradient id="arc" x1="0" y1="0" x2="1" y2="0"
+                  stop offset=0 stop-color="#ffffff" stop-opacity=0
+                  stop offset=0.5 stop-color="#ffffff" stop-opacity=0.95
+                  stop offset=1 stop-color="#ffffff" stop-opacity=0
+                radialGradient id="glow" cx="0.5" cy="0" r="0.6"
+                  stop offset=0 stop-color="#ffffff" stop-opacity=0.12
+                  stop offset=1 stop-color="#ffffff" stop-opacity=0
+              path d=`M 6 30 Q ${(w - 40) / 2} -4 ${w - 46} 30 L ${w - 46} 46 L 6 46 Z` fill="url(#glow)"
+              path d=`M 6 30 Q ${(w - 40) / 2} -4 ${w - 46} 30` fill="none" stroke="url(#arc)" stroke-width=2 stroke-linecap="round"
+            text "SCREEN" font-size=8 letter-spacing=4 color="#5a5a5e"
+          // The seats, rows A to I, aisles after seats 3 and 13.
+          column align-items="center" gap=7 padding="22px 16px 0"
+            for r in rows key=r.letter
+              row align-items="center" gap=4
+                text r.letter width=16 font-size=9 color="#5a5a5e" text-align="center"
+                for s in r.seats key=s.id
+                  if s.n == 4 or s.n == 14
+                    view width=8
+                  button press=pick(s.id) disabled=s.taken testId=`seat-${s.id}`
+                    aria-label=`Row ${s.row}, seat ${s.n}, ${s.kind}, ${s.taken ? "taken" : euro(s.price)}` aria-pressed=(chosen == s.id)
+                    width=seatW height=(seatW * 0.84) border-radius=4 padding=0
+                    border=(s.taken ? (s.kind == "recliner" ? "1px solid #4a1d22" : "1px solid #2e2e32") : "none")
+                    background-color=(chosen == s.id ? "#6fe3a6" : s.taken ? "transparent" : s.kind == "recliner" ? "#6a1f27" : "#3a3a3f")
+                    box-shadow=(chosen == s.id ? "0 0 12px rgba(111,227,166,0.7)" : "none")
+          row justify-content="center" gap=16 padding-top=22
+            Legend(fill="#3a3a3f", edge="none", label="Available")
+            Legend(fill="transparent", edge="1px solid #3a3a3f", label="Taken")
+            Legend(fill="#6a1f27", edge="none", label="Recliner")
+            Legend(fill="#6fe3a6", edge="none", label="Selected")
+          view flex=1
+          row align-items="center" padding="16px 16px calc(env(safe-area-inset-bottom) + 16px)" background-color="#121214"
+            border-top-left-radius=24 border-top-right-radius=24
+            column flex=1 gap=3
+              text (chosen == "" ? "Choose your seat" : `Row ${info.row} · Seat ${info.n}`) font-size=11 color="#8a8a8e" testId="picked"
+              text (chosen == "" ? "—" : euro(info.price)) font-size=18 font-weight=600 font-variant-numeric="tabular-nums" testId="price"
+            button press=go disabled=(chosen == "") testId="continue" height=46 padding="0 28px" border-radius=23 border="none" font-size=15 font-weight=600
+              background-color=(chosen == "" ? "#1f1f22" : "#6fe3a6") color=(chosen == "" ? "#56565a" : "#0c2b1d")
+              text "Continue"
+
+      // From the seat: where you are, the numbers, and what to do.
+      if phase == "view" or phase == "booked"
+        column testId="from-seat" position="absolute" inset=0 pointer-events="none" padding-top="env(safe-area-inset-top)" box-sizing="border-box"
+          column align-items="center" gap=6 padding="10px 16px" animation="appear 300ms ease-out"
+            row width="100%" align-items="center"
+              button press=changeSeat aria-label="Back to the seat map" testId="back" pointer-events="auto"
+                width=34 height=34 border-radius=17 border="none" background-color="rgba(20,20,22,0.7)" color="#f2f2f2" padding=0 font-size=18
+                text "‹"
+              view flex=1 display="flex" justify-content="center"
+                row align-items="center" gap=6 padding="7px 12px" border-radius=15 background-color="rgba(20,20,22,0.72)" testId="view-pill"
+                  view width=6 height=6 border-radius=3 background-color="#6fe3a6"
+                  text `View from ${info.id}` font-size=12 font-weight=500 testId="view-label"
+              view width=34
+            if phase == "view"
+              text "Drag to look around" font-size=11 color="rgba(255,255,255,0.55)"
+          view flex=1
+          column pointer-events="auto" gap=14 padding="10px 16px calc(env(safe-area-inset-bottom) + 18px)" background-color="rgba(17,17,19,0.96)"
+            border-top-left-radius=26 border-top-right-radius=26 animation="rise 420ms ease-out" testId="sheet"
+            view width=36 height=4 border-radius=2 background-color="#3a3a3e" align-self="center"
+            if phase == "booked"
+              column gap=6
+                text "BOOKED" font-size=10 font-weight=700 letter-spacing=1.5 color="#6fe3a6" testId="booked-label"
+                text `Row ${info.row}, Seat ${info.n}` font-size=24 font-weight=600
+                text `${showLabel(show)} · Hall 3 · Fri 14 Nov` font-size=13 color="#8a8a8e"
+                text "A demo booking: nothing was charged." font-size=12 color="#6a6a6e"
+              button press=done testId="done" height=48 border-radius=24 border="none" background-color="#f2f2f2" color="#111111" font-size=15 font-weight=600
+                text "Done"
+            else
+              row align-items="flex-start" gap=12
+                column flex=1 gap=4
+                  text info.label font-size=10 font-weight=700 letter-spacing=1.5 color="#6fe3a6" testId="seat-label"
+                  text `Row ${info.row}, Seat ${info.n}` font-size=24 font-weight=600 testId="seat-title"
+                  text `${info.kind == "recliner" ? "Recliner" : "Standard"} · ${euro(info.price)}` font-size=13 color="#8a8a8e"
+                MiniMap(row=rowIdx, n=info.n)
+              row gap=8
+                Stat(value=`${info.distance.toFixed(1)} m`, label="to screen", tid="stat-distance")
+                Stat(value=`${info.fov}°`, label="field of view", tid="stat-fov")
+                Stat(value=(info.side == "centre" ? "Centre" : `${info.offset.toFixed(1)} m`), label=info.side, tid="stat-offset")
+              row gap=10
+                button press=changeSeat testId="change-seat" flex=1 height=48 border-radius=24 border="none" background-color="#232326" color="#f2f2f2" font-size=15 font-weight=600
+                  text "Change seat"
+                button press=bookIt disabled=pending(booked) testId="book" flex=1.3 height=48 border-radius=24 border="none" background-color="#f2f2f2" color="#111111" font-size=15 font-weight=600
+                  text `Book · ${euro(info.price)}`
+              if toast != ""
+                text toast font-size=12 color="#ff8a80" text-align="center" testId="toast"
+
+// The hall through the camera: walls and floor, the screen and its film, then the seats far to near.
+component Hall
+  props
+    world: World
+    cam: Cam
+    chosen: string
+    w: number
+    h: number
+  view
+    svg width=w height=h viewBox=`0 0 ${w} ${h}` aria-label="The hall from the camera" testId="hall"
+      defs
+        linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"
+          stop offset=0 stop-color="#b0a096"
+          stop offset=1 stop-color="#f0dac2"
+        radialGradient id="vignette" cx="0.5" cy="0.42" r="0.75"
+          stop offset=0.5 stop-color="#000000" stop-opacity=0
+          stop offset=1 stop-color="#000000" stop-opacity=0.8
+      rect x=0 y=0 width=w height=h fill="#070606"
+      for f in world.backdrop key=f.id
+        if drawn(f, cam)
+          polygon points=points(f, cam) fill=f.fill
+      for f in world.film key=f.id
+        if drawn(f, cam)
+          // The sky's gradient is named here: a fill that comes as data is a colour only.
+          if f.fill == "sky"
+            polygon points=points(f, cam) fill="url(#sky)"
+          else
+            polygon points=points(f, cam) fill=f.fill
+      for s in sortBy(world.seats, s => depth(s.c, cam), "desc") key=s.id
+        for f in s.faces key=f.id
+          if drawn(f, cam)
+            polygon points=points(f, cam) fill=(s.id == chosen ? f.alt : f.fill)
+      rect x=0 y=0 width=w height=h fill="url(#vignette)" pointer-events="none"
+
+component Legend
+  props
+    fill: string
+    edge: string
+    label: string
+  view
+    row align-items="center" gap=5
+      view width=8 height=7 border-radius=2 background-color=fill border=edge
+      text label font-size=10 color="#8a8a8e"
+
+component Stat
+  props
+    value: string
+    label: string
+    tid: string
+  view
+    column flex=1 gap=2 padding="10px 12px" border-radius=14 background-color="#1d1d20"
+      text value font-size=17 font-weight=600 font-variant-numeric="tabular-nums" testId=tid
+      text label font-size=10 color="#7a7a7e"
+
+// The hall from above, small: the screen's arc, every seat, and yours lit.
+component MiniMap
+  props
+    row: number
+    n: number
+  view
+    svg width=64 height=48 viewBox="0 0 64 48" aria-hidden=true flex-shrink=0
+      path d="M 6 8 Q 32 1 58 8" fill="none" stroke="#9a9a9e" stroke-width=1.2 stroke-linecap="round"
+      for r in range(9) key=r
+        for c in range(16) key=c
+          circle cx=(7 + c * 3.1 + (c >= 3 ? 1.4 : 0) + (c >= 13 ? 1.4 : 0)) cy=(15 + r * 3.6) r=0.9 fill="#3a3a3e"
+      circle cx=(7 + (n - 1) * 3.1 + (n >= 4 ? 1.4 : 0) + (n >= 14 ? 1.4 : 0)) cy=(15 + row * 3.6) r=2.1 fill="#6fe3a6"
