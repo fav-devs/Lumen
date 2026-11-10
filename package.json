@@ -1,5 +1,5 @@
 {
-  "name": "exact-cinema",
+  "name": "lumen",
   "private": true,
   "scripts": {
     "build": "bun exact.mjs web-build --out dist",
