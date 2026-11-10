@@ -1,4 +1,4 @@
-# Seat View
+# Lumen
 
 A cinema seat picker built with [Exact](https://github.com/expo/exact). Pick a seat on the map,
 press Continue, and the map rises into a 3D hall while the camera flies into your seat and turns

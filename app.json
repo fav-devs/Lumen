@@ -1,13 +1,13 @@
 {
   "$schema": "../exact/scripts/app.schema.json",
-  "name": "Seat View",
-  "short_name": "Seat View",
-  "id": "ca.creatin.sondr.seat-view",
+  "name": "Lumen",
+  "short_name": "Lumen",
+  "id": "ca.creatin.lumen",
   "start_url": "/",
   "display": "standalone",
   "app": {
-    "id": "ca.creatin.sondr.seat-view",
-    "name": "Seat View"
+    "id": "ca.creatin.lumen",
+    "name": "Lumen"
   },
   "host": {
     "web": {},

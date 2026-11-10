@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
-  <!-- Seat View's icon: the screen's arc over the seats, yours lit. Rendered to assets/icon-1024.png by tools/render-icon.cjs. -->
+  <!-- Lumen's icon: the screen's arc over the seats, yours lit. Rendered to assets/icon-1024.png by tools/render-icon.cjs. -->
   <defs>
     <radialGradient id="bg" cx="0.5" cy="0.18" r="0.95">
       <stop offset="0" stop-color="#2a2522"/>

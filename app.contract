@@ -1,4 +1,4 @@
-// Seat View: pick a seat on the map, then fly into the hall and see the screen from it before
+// Lumen: pick a seat on the map, then fly into the hall and see the screen from it before
 // you book. The map and the hall are one drawing: app.ts's faces projected through a camera here,
 // as SVG. On the map the camera looks straight down with every height flattened to the floor, so
 // each seat is a tile; Continue raises the hall and flies the camera into the seat. No canvas,

@@ -1,4 +1,4 @@
-// Seat View on a phone-sized window. At 19:45 F8, B4 and I10 are free and I12 is taken.
+// Lumen on a phone-sized window. At 19:45 F8, B4 and I10 are free and I12 is taken.
 size 390x844
 
 test "the map opens at 19:45 with nothing picked"
