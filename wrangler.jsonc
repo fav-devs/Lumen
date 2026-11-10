@@ -1,0 +1,9 @@
+// Lumen on Cloudflare: a Worker that serves only static assets, the site
+// `bun exact.mjs web-build --out dist` writes. Deploy with `npx wrangler deploy`.
+{
+  "name": "lumen",
+  "compatibility_date": "2025-04-01",
+  "assets": {
+    "directory": "./dist"
+  }
+}

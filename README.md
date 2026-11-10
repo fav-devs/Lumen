@@ -67,6 +67,21 @@ The first opens the dev loop: it rebuilds on save and serves at the URL it print
 to open it from a phone on the same network. The second runs `app.test.contract`. The third
 writes a static site to `dist/` for any host, and `bun exact.mjs serve dist` serves it.
 
+## Deploy to Cloudflare
+
+The web build is a static site, and `wrangler.jsonc` serves it as a Worker with static assets
+only, no server code. From this folder, signed in to Cloudflare with `npx wrangler login` (or
+with `CLOUDFLARE_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` set):
+
+```bash
+bun run deploy
+```
+
+It builds `dist/` and runs `wrangler deploy`, which prints the site's `workers.dev` address. A
+custom domain is added to the `lumen` Worker in Cloudflare's dashboard. Under Wrangler's local
+runtime (`npx wrangler dev` after the build) the page, its scripts and the plan all load and the
+flight runs with no errors.
+
 ## How it works
 
 | File | What it is |
