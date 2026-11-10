@@ -15,11 +15,14 @@ One `app.contract` and one `app.ts` run on every platform Exact has. `app.json` 
 | Platform | Build and run | Checked so far |
 |---|---|---|
 | Web | `bun exact.mjs web` | Built, 9 tests pass, recorded on a real clock at phone and 1440×900 sizes |
-| Linux | `bun exact.mjs linux`, then `bun exact.mjs test linux` | See the status note below |
+| Linux | `bun exact.mjs linux`, then `bun exact.mjs test linux` | Built (Exact's own painter, no browser); 8 tests pass, the 9th is web-only (below) |
 | iOS | On a Mac with Xcode: `bun exact.mjs ios --run` (Simulator), `--device --run` (an iPhone), `bun exact.mjs share` (a link to install it) | Not built: needs a Mac |
 | macOS | On a Mac with Xcode: `bun exact.mjs mac --run` | Not built: needs a Mac |
 | Android | `bun exact.mjs android` with the Android SDK, the `aarch64-linux-android` Rust target and Hermes's Android bundle (`bun scripts/hermes-android.mjs build` in the Exact checkout) | Not built: needs the Android SDK |
 | Windows | On Windows: `bun exact.mjs windows --run` | Not built: needs Windows |
+
+The look-around test runs on the web only: Linux's test driver refuses a one-step drag, though a
+drive with separate down and move steps turns the head there exactly as on the web.
 
 Exact calls Android early: it builds and runs on an emulator or a phone, but store packaging
 doesn't exist yet. The first native build on a machine takes 10–15 minutes; later ones take a
