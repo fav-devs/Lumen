@@ -1,6 +1,7 @@
 // The records app.ts answers with.
 
-// A seat on the map. `block` is 0, 1 or 2 (left, centre, right of the aisles).
+// A seat on the map. `block` is 0, 1 or 2 (left, centre, right of the aisles); x, y and z are its
+// cushion's middle in the hall, in metres, where the map draws its tile.
 shape Seat
   id: string
   row: string
@@ -9,6 +10,9 @@ shape Seat
   kind: string
   price: number
   taken: bool
+  x: number
+  y: number
+  z: number
 
 shape Row
   letter: string
@@ -44,12 +48,18 @@ shape P3
   y: number
   z: number
 
-// A flat face: its corners, its colour (`alt` when its seat is the one picked), and its outward
-// normal at the point (px, py, pz), so a face turned away from the camera is not drawn.
+// A flat face: its corners, its colour, and its outward normal at the point (px, py, pz), so a face
+// turned away from the camera is not drawn. A seat's face gives its colour as numbers too, (r, g, b)
+// and (ar, ag, ab) when it is the seat picked, so the map's tile colour can turn into it.
 shape Face
   id: string
   fill: string
-  alt: string
+  r: number
+  g: number
+  b: number
+  ar: number
+  ag: number
+  ab: number
   nx: number
   ny: number
   nz: number
@@ -61,6 +71,7 @@ shape Face
 // A seat in 3D: its centre, which orders the seats far to near, and its faces.
 shape Seat3
   id: string
+  recliner: bool
   c: P3
   faces: Face[]
 
@@ -70,8 +81,9 @@ shape World
   film: Face[]
   seats: Seat3[]
 
-// The camera: where it is, its right, up and forward axes, its focal length in pixels, and the
-// middle of the picture.
+// The camera: where it is, its right, up and forward axes, its focal length in pixels, where the
+// view's centre lands in the picture (hw, hh), and `k`, how far the hall has risen: 0 flattens every
+// height to the floor (the map), 1 is the hall as built.
 shape Cam
   x: number
   y: number
@@ -87,6 +99,7 @@ shape Cam
   f: number
   hw: number
   hh: number
+  k: number
 
 shape Reply
   ok: bool

@@ -5,7 +5,9 @@ press Continue, and the camera flies into the hall and turns to the screen, so y
 from that seat before you book. It follows a concept by Ramin Nasibov; the cinema, the film on
 the screen and the code are this repo's own.
 
-Built and tested on Exact's web host only.
+It runs on the web at any size: a phone gets the map with a bar under it; a window 860 px or
+wider keeps a sidebar on the left (showtimes, legend, your pick, then the seat's numbers) and gives
+the hall the rest. Built and tested on Exact's web host only.
 
 ## How the 3D works
 
@@ -19,12 +21,24 @@ is projected by hand:
   through it each frame. A face is drawn only when it turns toward the camera and lies wholly in
   front of it. Seats are drawn far to near.
 - Everything is SVG `polygon`s, which Exact draws on every host.
-- Continue animates the camera along a quadratic Bézier: from above the hall, past a point
-  behind the seat, to the seat's eye line. The first frame lines up with the 2D map, so the map
-  crossfades into the hall.
-- From the seat, a drag turns the head.
+- **The map is the hall seen from above.** The camera looks straight down, its lens set so the
+  floor is a fixed number of pixels a metre, and every height is flattened to the floor, so each
+  seat draws as a tile. The seat buttons are invisible press targets laid exactly over their tiles.
+  Nothing crossfades: the map you tap is the first frame of the flight.
+- **Continue raises the hall.** Over the first 38% of the 2.4 s flight:
+  - every height grows back, so the seats extrude from their tiles;
+  - each face's colour turns from its tile's grey or recliner red to the upholstery (yours stays
+    green);
+  - the walls and the screen fade in.
+- **The camera makes two overlapping moves, so it never stops:**
+  1. Down from the map to a point behind and above the seat, looking at it. On the way down the
+     lens keeps the floor at the map's scale (a dolly zoom) until it reaches the seat's lens: 60°
+     on a phone, 70° across a wide stage.
+  2. Into the seat, turning up to the screen.
+- **From the seat, a drag turns the head.**
 
-In Chromium on a laptop the flight holds 60 fps with about 270 faces on screen.
+In headless Chromium (software rendering) the flight holds a 60 fps median with about 270 faces
+on screen, with some 30 fps frames at 1440×900.
 
 ### Why not HTML-in-Canvas?
 
@@ -63,6 +77,6 @@ bun exact.mjs web
 bun exact.mjs test web
 ```
 
-There are 8 tests: the map, picking, the recliner price, the flight and the numbers from B4,
-looking around, flying back, booking, and showtimes. All pass. Build outside the repo
+There are 9 tests: the map, picking, the recliner price, the flight and the numbers from B4,
+looking around, flying back, booking, showtimes, and the wide layout. All pass. Build outside the repo
 (`CARGO_TARGET_DIR=/tmp/seat-view-target`) if the repo-root `tsconfig.json` stops the build.

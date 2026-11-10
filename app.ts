@@ -48,9 +48,22 @@ function hall(show: number): Result<'hall'> {
     letter,
     seats: Array.from({ length: SEATS_PER_ROW }, (_, i) => {
       const n = i + 1, id = `${letter}${n}`, kind = kindOf(r);
-      return { id, row: letter, n, block: block(n), kind, price: PRICES[kind], taken: takenBefore(show, r, n) || mine.has(id) };
+      return {
+        id, row: letter, n, block: block(n), kind, price: PRICES[kind], taken: takenBefore(show, r, n) || mine.has(id),
+        x: seatX(n), y: rowFloor(r) + 0.45, z: rowZ(r),
+      };
     }),
   }));
+}
+
+function near(x: number, r: number, z: number) {
+  const nearX = x * 0.85, nearY = rowFloor(r) + 3.4, nearZ = z + 3.2;
+  const seatY = rowFloor(r) + 0.7;
+  return {
+    nearX, nearY, nearZ,
+    nearYaw: Math.atan2(x - nearX, nearZ - z),
+    nearPitch: -Math.atan2(nearY - seatY, Math.hypot(x - nearX, nearZ - z)),
+  };
 }
 
 function seatInfo(id: string): SeatInfo {
@@ -69,19 +82,27 @@ function seatInfo(id: string): SeatInfo {
     fov: Math.round((2 * Math.atan(SCREEN.width / 2 / z) * 180) / Math.PI),
     offset: round1(Math.abs(x)),
     side: Math.abs(x) < 0.2 ? 'centre' : x < 0 ? 'left of centre' : 'right of centre',
-    nearX: x * 0.55, nearY: rowFloor(r) + 5, nearZ: z + 3.4, nearYaw: yaw * 0.5, nearPitch: -0.72,
+    // Behind and above the seat, looking down at it: where the flight turns from the map to the seat.
+    ...near(x, r, z),
     eyeX: x, eyeY, eyeZ: z + 0.15, yaw, pitch,
   };
 }
 
+type RGB = [number, number, number];
 let faceCount = 0;
-/** A face from its corners, with its outward normal; `alt` is its colour on the picked seat. */
-function face(fill: string, normal: P3, pts: P3[], alt = fill): Face {
-  return { id: `f${faceCount++}`, fill, alt, nx: normal.x, ny: normal.y, nz: normal.z, px: pts[0].x, py: pts[0].y, pz: pts[0].z, pts };
+/** A face from its corners, with its outward normal and its colour. */
+function face(fill: string, normal: P3, pts: P3[]): Face {
+  return { id: `f${faceCount++}`, fill, r: 0, g: 0, b: 0, ar: 0, ag: 0, ab: 0, nx: normal.x, ny: normal.y, nz: normal.z, px: pts[0].x, py: pts[0].y, pz: pts[0].z, pts };
+}
+/** A seat's face: its colour as numbers, and `alt`, its colour on the seat picked. */
+function seatFace(rgb: RGB, alt: RGB, normal: P3, pts: P3[]): Face {
+  const [r, g, b] = rgb.map(Math.round), [ar, ag, ab] = alt;
+  return { ...face(`rgb(${r},${g},${b})`, normal, pts), r, g, b, ar, ag, ab };
 }
 const p = (x: number, y: number, z: number): P3 => ({ x, y, z });
 const UP = p(0, 1, 0), BACK = p(0, 0, 1), FRONT = p(0, 0, -1);
-const shade = (rgb: [number, number, number], k: number) => `rgb(${rgb.map((c) => Math.round(c * k)).join(',')})`;
+const scale = (rgb: RGB, k: number): RGB => [rgb[0] * k, rgb[1] * k, rgb[2] * k];
+const shade = (rgb: RGB, k: number) => `rgb(${scale(rgb, k).map(Math.round).join(',')})`;
 
 function backdrop(): Face[] {
   const faces: Face[] = [];
@@ -134,12 +155,12 @@ function seats3d(): Result<'world'>['seats'] {
       // Drawn in this order: from behind, the backrest covers the cushion; from the front, the cushion
       // covers the backrest's foot.
       const faces = [
-        face(shade([120, 14, 22], k * plush), FRONT, [p(x - w, y + 0.45, z + 0.22), p(x + w, y + 0.45, z + 0.22), p(x + w, y + 1.1, z + 0.22), p(x - w, y + 1.1, z + 0.22)], 'rgb(92,206,146)'),
-        face(shade([150, 20, 28], k * plush), UP, [p(x - w, y + 0.45, z - 0.24), p(x + w, y + 0.45, z - 0.24), p(x + w, y + 0.45, z + 0.22), p(x - w, y + 0.45, z + 0.22)], 'rgb(122,226,170)'),
-        face(shade([96, 10, 18], k * plush), BACK, [p(x - w, y + 0.3, z + 0.36), p(x - w, y + 1.14, z + 0.36), p(x + w, y + 1.14, z + 0.36), p(x + w, y + 0.3, z + 0.36)], 'rgb(66,170,116)'),
-        face(shade([138, 22, 30], k * plush), UP, [p(x - w, y + 1.14, z + 0.36), p(x + w, y + 1.14, z + 0.36), p(x + w, y + 1.1, z + 0.22), p(x - w, y + 1.1, z + 0.22)], 'rgb(150,240,192)'),
+        seatFace(scale([120, 14, 22], k * plush), [92, 206, 146], FRONT, [p(x - w, y + 0.45, z + 0.22), p(x + w, y + 0.45, z + 0.22), p(x + w, y + 1.1, z + 0.22), p(x - w, y + 1.1, z + 0.22)]),
+        seatFace(scale([150, 20, 28], k * plush), [122, 226, 170], UP, [p(x - w, y + 0.45, z - 0.24), p(x + w, y + 0.45, z - 0.24), p(x + w, y + 0.45, z + 0.22), p(x - w, y + 0.45, z + 0.22)]),
+        seatFace(scale([96, 10, 18], k * plush), [66, 170, 116], BACK, [p(x - w, y + 0.3, z + 0.36), p(x - w, y + 1.14, z + 0.36), p(x + w, y + 1.14, z + 0.36), p(x + w, y + 0.3, z + 0.36)]),
+        seatFace(scale([138, 22, 30], k * plush), [150, 240, 192], UP, [p(x - w, y + 1.14, z + 0.36), p(x + w, y + 1.14, z + 0.36), p(x + w, y + 1.1, z + 0.22), p(x - w, y + 1.1, z + 0.22)]),
       ];
-      out.push({ id: `${letter}${n}`, c: p(x, y + 0.7, z), faces });
+      out.push({ id: `${letter}${n}`, recliner: r >= 7, c: p(x, y + 0.7, z), faces });
     }
   });
   return out;

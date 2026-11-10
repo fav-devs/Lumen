@@ -24,7 +24,7 @@ test "continue flies to the seat and shows the view from it"
   tap "seat-B4"
   clock data
   tap "continue"
-  clock +2000
+  clock +2600
   clock data
   expect state phase == "view"
   expect tree has "hall"
@@ -36,29 +36,29 @@ test "continue flies to the seat and shows the view from it"
 test "a drag looks around from the seat"
   tap "seat-F8"
   tap "continue"
-  clock +2000
+  clock +2600
   tap "scene" drag -100 0
   expect state lookYaw == 0.4
 
 test "change seat flies back to the map with the seat still picked"
   tap "seat-F8"
   tap "continue"
-  clock +2000
+  clock +2600
   tap "change-seat"
-  clock +2000
+  clock +2600
   expect state phase == "map"
   expect text "picked" == "Row F · Seat 8"
 
 test "booking takes the seat"
   tap "seat-F8"
   tap "continue"
-  clock +2000
+  clock +2600
   clock data
   tap "book"
   clock data
   expect text "booked-label" == "BOOKED"
   tap "done"
-  clock +2000
+  clock +2600
   clock data
   expect state phase == "map"
   expect disabled "seat-F8"
@@ -69,3 +69,16 @@ test "another showtime has its own free seats"
   clock data
   expect state show == 0
   expect text "picked" == "Choose your seat"
+
+test "a wide window keeps the map and the seat card in a sidebar"
+  resize 1440x900
+  expect tree has "sidebar"
+  tap "seat-F8"
+  clock data
+  expect text "picked" == "Row F · Seat 8"
+  tap "continue"
+  clock +2600
+  clock data
+  expect tree has "card"
+  expect text "seat-label" == "SWEET SPOT"
+  expect text "view-label" == "View from F8"
